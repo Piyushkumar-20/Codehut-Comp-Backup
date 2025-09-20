@@ -57,7 +57,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-light-100 via-white to-blue-light-50 flex items-center justify-center px-4">
+    <div className="min-h-screen login-background flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="rounded-2xl bg-background/90 shadow-xl border border-border backdrop-blur p-6 sm:p-8">
           <h1 className="text-2xl font-semibold text-center">Welcome Back</h1>
