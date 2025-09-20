@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Github } from "lucide-react";
 import DemoLogin from "@/components/DemoLogin";
 import Logo from "@/components/Logo";
 import { useAuth } from "@/contexts/AuthContext";
