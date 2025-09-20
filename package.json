@@ -1,0 +1,13 @@
+{
+  "name": "workspace-root",
+  "private": true,
+  "scripts": {
+    "postinstall": "cd CodeHut-main && npm install",
+    "dev": "cd CodeHut-main && npm run dev",
+    "build": "cd CodeHut-main && npm run build",
+    "start": "cd CodeHut-main && npm run start",
+    "test": "cd CodeHut-main && npm run test",
+    "typecheck": "cd CodeHut-main && npm run typecheck",
+    "format.fix": "cd CodeHut-main && npm run format.fix"
+  }
+}
