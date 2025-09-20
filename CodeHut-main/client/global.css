@@ -134,3 +134,11 @@
 .gradient-border-hover:hover::before {
   opacity: 1;
 }
+
+/* Login page background image */
+.login-background {
+  background-image: url('https://cdn.builder.io/api/v1/image/assets%2F559819370e824315b4beaa4b12ef073b%2F637eec8e04954654b74cfcacb57ee171?format=webp&width=1600');
+  background-size: 220% auto; /* zoom to crop out embedded card in the image */
+  background-position: left bottom; /* focus on gradient area, not center card */
+  background-repeat: no-repeat;
+}
