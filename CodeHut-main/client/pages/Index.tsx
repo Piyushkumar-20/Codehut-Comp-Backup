@@ -90,7 +90,7 @@ export default function Index() {
                 <Link to="/login">Sign In</Link>
               </Button>
               <Button asChild>
-                <Link to="/signup">Sign Up</Link>
+                <Link to="/login?mode=signup">Sign Up</Link>
               </Button>
             </div>
           </div>
