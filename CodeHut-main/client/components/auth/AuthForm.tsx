@@ -125,12 +125,11 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
         body: JSON.stringify(payload),
       });
 
-      const raw = await res.text();
       let data: any = null;
       try {
-        data = raw ? JSON.parse(raw) : null;
+        data = await res.clone().json();
       } catch {
-        if (!res.ok) throw new Error(`Unexpected server response (${res.status})`);
+        data = null;
       }
 
       if (!res.ok) {
