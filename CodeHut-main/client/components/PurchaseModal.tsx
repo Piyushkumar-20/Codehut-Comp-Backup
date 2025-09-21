@@ -284,7 +284,7 @@ export default function PurchaseModal({
                       <Link to="/login">Log in</Link>
                     </Button>
                     <Button asChild>
-                      <Link to="/signup">Sign up</Link>
+                      <Link to="/login?mode=signup">Sign up</Link>
                     </Button>
                   </div>
                 </div>
