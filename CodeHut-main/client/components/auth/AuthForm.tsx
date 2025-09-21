@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type InputHTMLAttributes } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,25 @@ import {
 } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
+import { Mail, Lock, Eye, EyeOff, LogIn, User as UserIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+function PasswordInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <Input type={show ? "text" : "password"} {...props} className={cn("pl-9 pr-10", props.className)} />
+      <button
+        type="button"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+        onClick={() => setShow((s) => !s)}
+        aria-label={show ? "Hide password" : "Show password"}
+      >
+        {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+      </button>
+    </div>
+  );
+}
 
 export type AuthMode = "login" | "signup";
 
@@ -29,18 +48,10 @@ const emailSchema = z.string().email("Enter a valid email address");
 const passwordSchema = z
   .string()
   .min(8, "At least 8 characters")
-  .refine((val) => /[A-Z]/.test(val), {
-    message: "One uppercase letter",
-  })
-  .refine((val) => /[a-z]/.test(val), {
-    message: "One lowercase letter",
-  })
-  .refine((val) => /\d/.test(val), {
-    message: "One number",
-  })
-  .refine((val) => /[!@#$%^&*(),.?":{}|<>]/.test(val), {
-    message: "One special character",
-  });
+  .refine((val) => /[A-Z]/.test(val), { message: "One uppercase letter" })
+  .refine((val) => /[a-z]/.test(val), { message: "One lowercase letter" })
+  .refine((val) => /\d/.test(val), { message: "One number" })
+  .refine((val) => /[!@#$%^&*(),.?":{}|<>]/.test(val), { message: "One special character" });
 
 const loginSchema = z.object({
   email: emailSchema,
@@ -50,18 +61,12 @@ const loginSchema = z.object({
 
 const signupSchema = z
   .object({
-    username: z
-      .string()
-      .min(3, "Min 3 characters")
-      .max(20, "Max 20 characters")
-      .regex(/^[a-zA-Z0-9_-]+$/, "Letters, numbers, _ and - only"),
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirm your password"),
-    bio: z.string().max(500).optional().or(z.literal("")),
-    acceptTerms: z.boolean().refine((v) => v === true, {
-      message: "You must accept the terms",
-    }),
+    acceptTerms: z.boolean().refine((v) => v === true, { message: "You must accept the terms" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -78,7 +83,6 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [submitting, setSubmitting] = useState(false);
 
-  // allow query param to set mode: ?mode=signup
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const m = params.get("mode");
@@ -90,19 +94,11 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
     defaultValues:
       (mode === "login"
         ? { email: "", password: "", rememberMe: false }
-        : {
-            username: "",
-            email: "",
-            password: "",
-            confirmPassword: "",
-            bio: "",
-            acceptTerms: false,
-          }) as any,
+        : { firstName: "", lastName: "", email: "", password: "", confirmPassword: "", acceptTerms: false }) as any,
     mode: "onChange",
   });
 
   useEffect(() => {
-    // reset resolver when mode changes
     form.reset(undefined, { keepDefaultValues: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
@@ -111,9 +107,13 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
     try {
       setSubmitting(true);
       const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/signup";
-      const payload: any = mode === "login" ? values : { ...values };
+      let payload: any = values as any;
       if (mode === "signup") {
-        delete payload.confirmPassword;
+        const v = values as SignupFormValues;
+        const raw = `${v.firstName}_${v.lastName}`.toLowerCase();
+        const sanitized = raw.replace(/[^a-z0-9_-]/g, "_").replace(/_+/g, "_").slice(0, 20);
+        const username = sanitized.length >= 3 ? sanitized : `user_${Date.now().toString(36)}`;
+        payload = { username, email: v.email, password: v.password };
       }
 
       const res = await fetch(endpoint, {
@@ -146,45 +146,54 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
   };
 
   const handleOAuth = (provider: "google" | "facebook") => {
-    // Backend endpoints are not implemented in this project yet
-    toast({
-      title: "Social login unavailable",
-      description: `"${provider}" login is not configured. Please use email/password.`,
-      variant: "destructive",
-    });
+    toast({ title: "Social login unavailable", description: `"${provider}" login is not configured. Please use email/password.`, variant: "destructive" });
   };
 
-  const Title = useMemo(() => (mode === "login" ? "Welcome Back" : "Create your account"), [mode]);
-  const Subtitle = useMemo(
-    () => (mode === "login" ? "Sign in to your account to continue" : "It takes less than a minute"),
-    [mode],
-  );
+  const Title = useMemo(() => (mode === "login" ? "Welcome Back" : "Create Account"), [mode]);
+  const Subtitle = useMemo(() => (mode === "login" ? "Sign in to your account to continue" : "Join us and start your journey today"), [mode]);
 
   return (
     <div className={className}>
-      <div className="rounded-2xl bg-background/90 shadow-xl border border-border backdrop-blur p-6 sm:p-8">
+      <div className="rounded-2xl bg-white shadow-xl border border-border p-6 sm:p-8">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold">{Title}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{Subtitle}</p>
+          <div className="mx-auto mb-3 flex items-center justify-center w-10 h-10 rounded-lg bg-blue-light-100 text-blue-light-600">
+            {mode === "login" ? <LogIn className="w-5 h-5" /> : <UserIcon className="w-5 h-5" />}
+          </div>
+          <h1 className="text-2xl font-semibold text-gray-900">{Title}</h1>
+          <p className="text-sm text-gray-500 mt-1">{Subtitle}</p>
         </div>
 
         <Form {...(form as any)}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-4">
             {mode === "signup" && (
-              <FormField
-                control={form.control as any}
-                name="username" as={undefined as any}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input placeholder="johndoe" {...field} />
-                    </FormControl>
-                    <FormDescription>3–20 characters. Letters, numbers, _ and - only.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control as any}
+                  name="firstName" as={undefined as any}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control as any}
+                  name="lastName" as={undefined as any}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             )}
 
             <FormField
@@ -192,9 +201,12 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
               name="email" as={undefined as any}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email address</FormLabel>
+                  <FormLabel>Email Address</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="you@example.com" autoComplete="email" {...field} />
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input type="email" placeholder="john.doe@example.com" autoComplete="email" className="pl-9" {...field} />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -206,9 +218,17 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
               name="password" as={undefined as any}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Password</FormLabel>
+                    {mode === "login" && (
+                      <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">Forgot password?</Link>
+                    )}
+                  </div>
                   <FormControl>
-                    <Input type="password" placeholder={mode === "login" ? "Enter your password" : "Create a strong password"} autoComplete={mode === "login" ? "current-password" : "new-password"} {...field} />
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <PasswordInput autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder={mode === "login" ? "Enter your password" : "Create a strong password"} {...field} />
+                    </div>
                   </FormControl>
                   {mode === "signup" && (
                     <FormDescription>
@@ -229,21 +249,10 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
                     <FormItem>
                       <FormLabel>Confirm Password</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="Re-enter your password" autoComplete="new-password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control as any}
-                  name="bio" as={undefined as any}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Bio (optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Tell us about yourself..." {...field} />
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <PasswordInput autoComplete="new-password" placeholder="Confirm your password" {...field} />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -257,7 +266,9 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
                     <FormItem>
                       <div className="flex items-center gap-2">
                         <input id="terms" type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-                        <Label htmlFor="terms" className="text-sm">I agree to the Terms of Service and Privacy Policy</Label>
+                        <Label htmlFor="terms" className="text-sm">
+                          I agree to the <span className="text-blue-600">Terms of Service</span> and <span className="text-blue-600">Privacy Policy</span>
+                        </Label>
                       </div>
                       <FormMessage />
                     </FormItem>
@@ -274,15 +285,15 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
                   <FormItem>
                     <div className="flex items-center gap-2">
                       <input id="remember" type="checkbox" checked={!!field.value} onChange={(e) => field.onChange(e.target.checked)} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-                      <Label htmlFor="remember" className="text-sm">Remember me</Label>
+                      <Label htmlFor="remember" className="text-sm">Remember me for 30 days</Label>
                     </div>
                   </FormItem>
                 )}
               />
             )}
 
-            <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? (mode === "login" ? "Signing in..." : "Creating account...") : mode === "login" ? "Sign in" : "Create account"}
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={submitting}>
+              {submitting ? (mode === "login" ? "Signing in..." : "Creating account...") : mode === "login" ? "Sign In" : "Create Account"}
             </Button>
           </form>
         </Form>
@@ -293,13 +304,13 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
               <div className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs text-muted-foreground">
-              <span className="bg-background px-2">OR CONTINUE WITH</span>
+              <span className="bg-white px-2">OR CONTINUE WITH</span>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Button variant="outline" className="w-full justify-center" type="button" onClick={() => handleOAuth("google")}> 
+          <Button variant="outline" className="w-full justify-center" type="button" onClick={() => handleOAuth("google")}>
             <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
               <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
               <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -319,9 +330,13 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
 
         <div className="mt-6 text-center text-sm">
           {mode === "login" ? (
-            <button className="text-muted-foreground hover:underline" type="button" onClick={() => setMode("signup")}>Don't have an account? Sign up</button>
+            <button className="text-gray-500 hover:underline" type="button" onClick={() => setMode("signup")}>
+              Don't have an account? <span className="text-blue-600">Sign up</span>
+            </button>
           ) : (
-            <button className="text-muted-foreground hover:underline" type="button" onClick={() => setMode("login")}>Already have an account? Sign in</button>
+            <button className="text-gray-500 hover:underline" type="button" onClick={() => setMode("login")}>
+              Already have an account? <span className="text-blue-600">Sign in</span>
+            </button>
           )}
         </div>
       </div>
