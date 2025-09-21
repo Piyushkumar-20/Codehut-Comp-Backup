@@ -99,10 +99,15 @@ export default function AuthForm({ initialMode = "login", className }: AuthFormP
         ? { email: "", password: "", rememberMe: false }
         : { firstName: "", lastName: "", email: "", password: "", confirmPassword: "", acceptTerms: false }) as any,
     mode: "onChange",
+    shouldUnregister: true,
   });
 
   useEffect(() => {
-    form.reset(undefined, { keepDefaultValues: false });
+    if (mode === "login") {
+      form.reset({ email: "", password: "", rememberMe: false } as any);
+    } else {
+      form.reset({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "", acceptTerms: false } as any);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
