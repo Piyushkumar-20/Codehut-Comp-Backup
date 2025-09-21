@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type InputHTMLAttributes } from "react";
+import { useEffect, useMemo, useState, type InputHTMLAttributes, forwardRef } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,11 +20,14 @@ import { toast } from "@/components/ui/use-toast";
 import { Mail, Lock, Eye, EyeOff, LogIn, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-function PasswordInput(props: InputHTMLAttributes<HTMLInputElement>) {
+const PasswordInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function PasswordInput(
+  props,
+  ref,
+) {
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
-      <Input type={show ? "text" : "password"} {...props} className={cn("pl-9 pr-10", props.className)} />
+      <Input ref={ref} type={show ? "text" : "password"} {...props} className={cn("pl-9 pr-10", props.className)} />
       <button
         type="button"
         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -35,7 +38,7 @@ function PasswordInput(props: InputHTMLAttributes<HTMLInputElement>) {
       </button>
     </div>
   );
-}
+});
 
 export type AuthMode = "login" | "signup";
 
